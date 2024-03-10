@@ -35,14 +35,14 @@ struct Options {
 
 #[cfg(target_os = "macos")]
 fn main() {
-    let options = Options::parse();
+    let _ = Options::parse();
 
     println!("this is mac os main func")
 }
 
 #[cfg(target_os = "linux")]
 fn main() {
-    let options = Options::parse();
+    let _ = Options::parse();
 
-    println!("this is mac os main func")
+    println!("this is linux os main func")
 }
