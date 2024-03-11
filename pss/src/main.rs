@@ -1,7 +1,4 @@
 use clap::Parser;
-use std::fs::read_dir;
-use std::io;
-use term_table::{Table, TableStyle};
 
 const LONG_ABOUT: &'static str = "ps  gives a snapshot of the current processes. If you want a repetitive update of this status, use top. This man page documents the /proc-based version of ps, or tries to.";
 
@@ -66,7 +63,7 @@ fn main() -> io::Result<()> {
 
             if path.is_dir() {
                 if let Ok(process_id) = path.file_name().unwrap().to_str().unwrap().parse::<usize>() {
-                    let process_status = ProcessStatus::new(process_id);
+                    let process_status = ProcessStatus::new(process_id)?;
                     table.add_row(Row::new(vec![
                         TableCell::new(process_id),
                         TableCell::new(process_status.name),

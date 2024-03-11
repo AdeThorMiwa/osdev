@@ -22,6 +22,19 @@ impl ToString for ProcessState {
     }
 }
 
+impl TryFrom<&str> for ProcessState {
+    type Error = ();
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        let state = match value {
+            _ => ProcessState::R,
+        };
+        println!("process state >> {}", value);
+
+        Ok(state)
+    }
+}
+
 pub struct ProcessStatus {
     pub name: String,
     pub umask: usize,
@@ -29,7 +42,7 @@ pub struct ProcessStatus {
 }
 
 impl ProcessStatus {
-    pub fn new(pid: usize) -> Self {
+    pub fn new(pid: usize) -> Result<Self, ()> {
         let mut status_file =
             File::open(format!("/proc/{}/status", pid)).expect("Invalid process ID");
         let mut buf = String::new();
@@ -37,16 +50,22 @@ impl ProcessStatus {
         let parsed = buf
             .split("\n")
             .map(|line| {
-                let mapped = line.split(":").map(|n| n.to_string());
+                let mapped = line.split(":");
                 mapped.collect()
             })
-            .collect::<Vec<Vec<String>>>();
+            .collect::<Vec<Vec<&str>>>();
 
         let name = parsed.get(0).unwrap().get(1).unwrap();
-        Self {
+        let state = parsed.get(2).unwrap().get(1).unwrap();
+        let state = match ProcessState::try_from(*state) {
+            Ok(state) => state,
+            Err(_) => return Err(()),
+        };
+
+        Ok(Self {
             name: name.to_string(),
-            state: ProcessState::R,
+            state: state,
             umask: 23,
-        }
+        })
     }
 }
