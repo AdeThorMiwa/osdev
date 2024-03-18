@@ -1,7 +1,11 @@
-use std::{fs::File, io::Read};
+use std::{
+    fs::File,
+    io::{self, Read},
+};
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub enum ProcessState {
+    #[default]
     /// Running or Runnable
     R,
     /// Interruptable Sleep
@@ -15,6 +19,9 @@ pub enum ProcessState {
     /// Idle
     I,
 }
+
+#[derive(Debug, Default)]
+pub struct Umask(usize);
 
 impl ToString for ProcessState {
     fn to_string(&self) -> String {
@@ -35,37 +42,80 @@ impl TryFrom<&str> for ProcessState {
     }
 }
 
+#[derive(Debug, Default)]
 pub struct ProcessStatus {
     pub name: String,
-    pub umask: usize,
+    pub umask: Umask,
     pub state: ProcessState,
 }
 
+pub enum ProcessStatusError {
+    IOError(io::Error),
+    ParseError(String),
+}
+
 impl ProcessStatus {
-    pub fn new(pid: usize) -> Result<Self, ()> {
-        let mut status_file =
-            File::open(format!("/proc/{}/status", pid)).expect("Invalid process ID");
+    pub fn new(pid: usize) -> Result<Self, ProcessStatusError> {
+        let mut status_file = ProcessStatus::read_process_status_file(pid)?;
+        let status = ProcessStatus::parse_file(&mut status_file)?;
+        Ok(status)
+    }
+
+    fn parse_file(status_file: &mut File) -> Result<Self, ProcessStatusError> {
         let mut buf = String::new();
         let _ = status_file.read_to_string(&mut buf);
-        let parsed = buf
-            .split("\n")
-            .map(|line| {
-                let mapped = line.split(":");
-                mapped.collect()
-            })
-            .collect::<Vec<Vec<&str>>>();
 
-        let name = parsed.get(0).unwrap().get(1).unwrap();
-        let state = parsed.get(2).unwrap().get(1).unwrap();
-        let state = match ProcessState::try_from(*state) {
-            Ok(state) => state,
-            Err(_) => return Err(()),
+        let mut p_status = Self {
+            ..Default::default()
         };
 
-        Ok(Self {
-            name: name.to_string(),
-            state: state,
-            umask: 23,
-        })
+        let _: Vec<Result<_, ProcessStatusError>> = buf
+            .lines()
+            .map(|line| {
+                if let Some((key, value)) = line.split_once(":") {
+                    let key = key.trim();
+                    let value = value.trim();
+
+                    match key {
+                        "Name" => {
+                            p_status.name = value.to_string();
+                        }
+                        "Umask" => {
+                            let umask = value.parse::<usize>().map_err(|_| {
+                                ProcessStatusError::ParseError("invalid umask".to_string())
+                            })?;
+                            p_status.umask = Umask(umask)
+                        }
+                        "State" => {
+                            let state = match value {
+                                v if v.starts_with("I") => ProcessState::I,
+                                v if v.starts_with("R") => ProcessState::R,
+                                v if v.starts_with("S") => ProcessState::S,
+                                v if v.starts_with("D") => ProcessState::D,
+                                _ => {
+                                    println!("default status {} to zombie", value);
+                                    ProcessState::Z
+                                }
+                            };
+                            p_status.state = state;
+                        }
+                        _ => {
+                            dbg!("unknown key");
+                        }
+                    }
+                }
+
+                Ok(())
+            })
+            .collect();
+
+        Ok(p_status)
+    }
+
+    fn read_process_status_file(pid: usize) -> Result<File, ProcessStatusError> {
+        match File::open(format!("/proc/{}/status", pid)) {
+            Ok(file) => Ok(file),
+            Err(e) => Err(ProcessStatusError::IOError(e)),
+        }
     }
 }
