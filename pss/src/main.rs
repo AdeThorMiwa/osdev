@@ -37,13 +37,14 @@ struct Options {
 fn main() {
     let _ = Options::parse();
 
-    println!("this is mac os main func")
+    eprintln!("not supported")
 }
 
 #[cfg(target_os = "linux")]
-fn main() -> io::Result<()> {
+fn main() -> anyhow::Result<()> {
     use pss::proc_linux::status::ProcessStatus;
-    use term_table::{row::Row, table_cell::TableCell};
+    use std::fs::read_dir;
+    use term_table::{row::Row, table_cell::TableCell, Table, TableStyle};
 
     let options = Options::parse();
 
@@ -62,13 +63,16 @@ fn main() -> io::Result<()> {
             let path = entry.path();
 
             if path.is_dir() {
-                if let Ok(process_id) = path.file_name().unwrap().to_str().unwrap().parse::<usize>() {
-                    let process_status = ProcessStatus::new(process_id)?;
-                    table.add_row(Row::new(vec![
-                        TableCell::new(process_id),
-                        TableCell::new(process_status.name),
-                        TableCell::new(process_status.state),
-                    ]))
+                if let Ok(pid) = path.file_name().unwrap().to_str().unwrap().parse::<usize>() {
+                    if let Ok(process_status) = ProcessStatus::new(pid) {
+                        table.add_row(Row::new(vec![
+                            TableCell::new(pid),
+                            TableCell::new(process_status.name),
+                            TableCell::new(process_status.state),
+                        ]))
+                    } else {
+                        eprintln!("process with pid: {} is invalid", pid)
+                    }
                 }
             }
         }

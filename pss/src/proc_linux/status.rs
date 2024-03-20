@@ -25,20 +25,16 @@ pub struct Umask(usize);
 
 impl ToString for ProcessState {
     fn to_string(&self) -> String {
-        "Running".to_string()
-    }
-}
-
-impl TryFrom<&str> for ProcessState {
-    type Error = ();
-
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        let state = match value {
-            _ => ProcessState::R,
+        let string_val = match self {
+            Self::R => "R (Running)",
+            Self::S => "S (Sleeping)",
+            Self::D => "D (Uninterruptable Sleep)",
+            Self::T => "T (Stopped)",
+            Self::Z => "Z (Zombie)",
+            Self::I => "I (Idle)",
         };
-        println!("process state >> {}", value);
 
-        Ok(state)
+        string_val.to_string()
     }
 }
 
@@ -99,9 +95,7 @@ impl ProcessStatus {
                             };
                             p_status.state = state;
                         }
-                        _ => {
-                            dbg!("unknown key");
-                        }
+                        _ => {}
                     }
                 }
 
