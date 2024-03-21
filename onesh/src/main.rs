@@ -1,5 +1,6 @@
-use onesh::repl::REPL;
+use onesh::cli::Cli;
 
-fn main() {
-    REPL::init();
+fn main() -> std::io::Result<()> {
+    let mut cli = Cli::new();
+    cli.repl()
 }
