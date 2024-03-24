@@ -8,5 +8,6 @@ edition = "2021"
 [dependencies]
 clap = { version = "4.5.3", features = ["derive"] }
 fork = "0.1.23"
+home = "0.5.9"
 nix = { version = "0.28.0", features = ["process"] }
 trees = "0.4.2"

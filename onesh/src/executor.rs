@@ -57,6 +57,13 @@ impl Executor {
                 }
             }
 
+            if let Some(SymTabEntry::Func { func_body, .. }) =
+                ctx.sym_tab_stack.get_global_sym_tab().get(&argv[0])
+            {
+                func_body(argc, argv, ctx);
+                return Some(0);
+            }
+
             match fork() {
                 Ok(Fork::Parent(child_pid)) => {
                     let exit_code = match nix::sys::wait::waitpid(
@@ -70,13 +77,7 @@ impl Executor {
                     return Some(exit_code);
                 }
                 Ok(Fork::Child) => {
-                    if let Some(SymTabEntry::Func { func_body, .. }) =
-                        ctx.sym_tab_stack.get_global_sym_tab().get(&argv[0])
-                    {
-                        func_body(argc, argv, ctx);
-                    } else {
-                        let _ = self.exec_command(argc, argv);
-                    }
+                    let _ = self.exec_command(argc, argv);
 
                     process::exit(0)
                 }
