@@ -1,4 +1,6 @@
-pub type BuiltInFuncType = fn(argc: usize, argv: Vec<String>);
+use crate::cli::CliContext;
+
+pub type BuiltInFuncType = fn(argc: usize, argv: Vec<String>, ctx: &mut CliContext);
 
 #[derive(Debug, Clone)]
 pub struct BuiltIn {

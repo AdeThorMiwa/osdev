@@ -1,9 +1,11 @@
-use crate::{
-    parser::Node,
-    sym_tab::{SymTabEntry, SymTabStack},
-};
+use crate::{cli::CliContext, parser::Node, sym_tab::SymTabEntry};
 use fork::{fork, Fork};
-use std::{io::Error, os::unix::process::CommandExt, path::Path, process::Command};
+use std::{
+    io::Error,
+    os::unix::process::CommandExt,
+    path::Path,
+    process::{self, Command},
+};
 use trees::Tree;
 
 pub struct Executor;
@@ -23,7 +25,7 @@ impl Executor {
         None
     }
 
-    pub fn exec_command(&self, _argc: usize, argv: Vec<String>) -> Result<(), usize> {
+    pub fn exec_command(&self, _argc: usize, argv: Vec<String>) -> usize {
         let bin = &argv[0];
 
         let program = if bin.contains("/") {
@@ -34,15 +36,15 @@ impl Executor {
 
         if let Some(program) = program {
             Command::new(program).args(argv.iter().skip(1)).exec();
-            return Ok(());
+            return 0;
         } else {
-            eprintln!("onesh: command not found: {}", argv[0]);
+            println!("onesh: command not found: {}", argv[0]);
         }
 
-        Err(0)
+        1
     }
 
-    pub fn run_command(&self, command: Tree<Node>, sym_tab: &mut SymTabStack) -> Result<(), usize> {
+    pub fn run_command(&self, command: Tree<Node>, ctx: &mut CliContext) -> Option<usize> {
         if let Some(_) = command.front() {
             let mut argc = 0;
             let max_args = 255;
@@ -55,28 +57,34 @@ impl Executor {
                 }
             }
 
-            if let Some(SymTabEntry::Func { func_body, .. }) =
-                sym_tab.get_global_sym_tab().get(&argv[0])
-            {
-                func_body(argc, argv);
-                return Ok(());
-            }
-
             match fork() {
                 Ok(Fork::Parent(child_pid)) => {
-                    match nix::sys::wait::waitpid(nix::unistd::Pid::from_raw(child_pid), None) {
-                        Ok(_) => {}
-                        Err(_) => eprintln!("Error waiting"),
-                    }
+                    let exit_code = match nix::sys::wait::waitpid(
+                        nix::unistd::Pid::from_raw(child_pid),
+                        None,
+                    ) {
+                        Ok(_) => 0,
+                        Err(_) => 1,
+                    };
+
+                    return Some(exit_code);
                 }
                 Ok(Fork::Child) => {
-                    let _ = self.exec_command(argc, argv);
+                    if let Some(SymTabEntry::Func { func_body, .. }) =
+                        ctx.sym_tab_stack.get_global_sym_tab().get(&argv[0])
+                    {
+                        func_body(argc, argv, ctx);
+                    } else {
+                        let _ = self.exec_command(argc, argv);
+                    }
+
+                    process::exit(0)
                 }
                 Err(_) => eprintln!("error: failed to fork command: {}", Error::last_os_error()),
             }
         }
 
-        Err(0)
+        None
     }
 }
 

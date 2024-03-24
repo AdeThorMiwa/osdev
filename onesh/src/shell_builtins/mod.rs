@@ -1,8 +1,9 @@
 use crate::builtin::BuiltIn;
+pub mod currenttime;
+pub mod dump;
 
 use self::currenttime::current_time;
-
-pub mod currenttime;
+use self::dump::dump;
 
 pub fn builtins() -> Vec<BuiltIn> {
     let currenttime = BuiltIn {
@@ -10,5 +11,10 @@ pub fn builtins() -> Vec<BuiltIn> {
         func: current_time,
     };
 
-    vec![currenttime]
+    let dump_b = BuiltIn {
+        name: "dump".to_string(),
+        func: dump,
+    };
+
+    vec![currenttime, dump_b]
 }

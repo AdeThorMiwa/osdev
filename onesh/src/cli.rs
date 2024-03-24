@@ -12,6 +12,10 @@ pub enum PromptLevel {
     PS2,
 }
 
+pub struct CliContext<'a> {
+    pub sym_tab_stack: &'a mut SymTabStack,
+}
+
 pub struct Cli<'a> {
     executor: Executor,
     parser: Parser,
@@ -34,7 +38,7 @@ impl<'a> Cli<'a> {
         }
     }
 
-    pub fn init(&mut self) -> std::io::Result<()> {
+    pub fn init(&mut self) {
         self.init_global_symbol_table();
         self.load_shell_builtins();
         self.repl()
@@ -84,32 +88,33 @@ impl<'a> Cli<'a> {
         global_symbol_tab.insert(ps2, ps2_entry);
     }
 
-    fn repl(&mut self) -> std::io::Result<()> {
+    fn repl(&mut self) {
         loop {
             self.prompt(PromptLevel::PS1);
 
             let command = self.read_cmd();
 
-            if command.as_bytes()[0] == b'\0' || command == "\n" {
-                continue;
+            match command {
+                c if c == "exit\n" => process::exit(0),
+                c if c.len() > 0 && (c.as_bytes()[0] == b'\0' || c == "\n") => continue,
+                _ => {
+                    let _ = self.parse_and_execute(command);
+                }
             }
-
-            if command == "exit\n" {
-                break;
-            }
-
-            self.parse_and_execute(command);
         }
-
-        process::exit(0)
     }
 
     fn parse_and_execute(&mut self, command: String) {
         let mut tokenizer = Tokenizer::new(&command);
         tokenizer.skip_whitespaces();
+
+        let mut ctx = CliContext {
+            sym_tab_stack: &mut self.sym_tab_stack,
+        };
+
         while let Some(token) = tokenizer.tokenize() {
             let command = self.parser.parse(&token, &mut tokenizer);
-            let _ = self.executor.run_command(command, &mut self.sym_tab_stack);
+            let _ = self.executor.run_command(command, &mut ctx);
         }
     }
 

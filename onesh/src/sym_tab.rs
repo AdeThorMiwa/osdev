@@ -55,6 +55,10 @@ impl SymTab {
     pub fn delete(&mut self, symbol: &str) -> Option<SymTabEntry> {
         self.entries.remove(symbol)
     }
+
+    pub fn get_entries(&mut self) -> &mut HashMap<String, SymTabEntry> {
+        &mut self.entries
+    }
 }
 
 impl SymTabStack {
@@ -90,10 +94,16 @@ impl SymTabStack {
         glob
     }
 
-    pub fn get_local_sym_tab(&self) -> Option<&SymTab> {
+    pub fn get_local_sym_tab(&self) -> &SymTab {
         let index = self.stack.len() - 1;
         let stack = &self.stack;
-        stack.into_iter().nth(index)
+        stack.into_iter().nth(index).unwrap()
+    }
+
+    pub fn get_local_sym_tab_mut(&mut self) -> &mut SymTab {
+        let index = self.stack.len() - 1;
+        let stack = &mut self.stack;
+        stack.into_iter().nth(index).unwrap()
     }
 
     pub fn max_sym_tab() -> usize {
