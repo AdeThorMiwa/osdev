@@ -1,8 +1,10 @@
+use crate::{
+    parser::Node,
+    sym_tab::{SymTabEntry, SymTabStack},
+};
 use fork::{fork, Fork};
 use std::{io::Error, os::unix::process::CommandExt, path::Path, process::Command};
 use trees::Tree;
-
-use crate::parser::Node;
 
 pub struct Executor;
 
@@ -33,22 +35,31 @@ impl Executor {
         if let Some(program) = program {
             Command::new(program).args(argv.iter().skip(1)).exec();
             return Ok(());
+        } else {
+            eprintln!("onesh: command not found: {}", argv[0]);
         }
 
         Err(0)
     }
 
-    pub fn run_command(&self, root: Tree<Node>) -> Result<(), usize> {
-        if let Some(_) = root.front() {
+    pub fn run_command(&self, command: Tree<Node>, sym_tab: &mut SymTabStack) -> Result<(), usize> {
+        if let Some(_) = command.front() {
             let mut argc = 0;
             let max_args = 255;
             let mut argv = Vec::with_capacity(max_args);
 
-            for child in root.bfs().iter {
+            for child in command.bfs().iter {
                 if let Node::Param { value } = child.data {
                     argv.push(value.to_string());
                     argc += 1;
                 }
+            }
+
+            if let Some(SymTabEntry::Func { func_body, .. }) =
+                sym_tab.get_global_sym_tab().get(&argv[0])
+            {
+                func_body(argc, argv);
+                return Ok(());
             }
 
             match fork() {
