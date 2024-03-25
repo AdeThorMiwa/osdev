@@ -6,3 +6,4 @@ pub mod scanner;
 pub mod shell_builtins;
 pub mod sym_tab;
 pub mod tokenizer;
+pub mod word_exp;
